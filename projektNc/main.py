@@ -1,28 +1,40 @@
 from logger import Logger
 from Sensory import TemperatureSensor, HumiditySensor, PressureSensor, LightSensor
-from datetime import datetime
+from datetime import datetime, timedelta
+import time
 
 def main():
-    # Tworzenie instancji loggera na podstawie pliku konfiguracyjnego
+    # Tworzenie instancji loggera
     logger = Logger("config.json")
     logger.start()
 
     # Tworzenie instancji czujników
-    temp_sensor = TemperatureSensor("T1", "Temperature Sensor", "°C", -10, 40)
-    humidity_sensor = HumiditySensor("H1", "Humidity Sensor", "%", 0, 100)
+    sensors = [
+        TemperatureSensor("T1", "Temperature Sensor", "°C", -10, 40),
+        HumiditySensor("H1", "Humidity Sensor", "%", 0, 100),
+        PressureSensor("P1", "Pressure Sensor", "hPa", 950, 1050),
+        LightSensor("L1", "Light Sensor", "lux", 0, 10000)
+    ]
 
-    # Generowanie danych i logowanie
-    for _ in range(100):
-        temp_value = temp_sensor.read_value()
-        humidity_value = humidity_sensor.read_value()
+    # Rejestracja callbacków
+    for sensor in sensors:
+        sensor.register_callback(logger.log_reading)
 
-        # Logowanie danych do pliku
-        logger.log_reading(temp_sensor.sensor_id, datetime.now(), temp_value, "°C")
-        logger.log_reading(humidity_sensor.sensor_id, datetime.now(), humidity_value, "%")
-
+    # Symulacja pracy czujników
+    end_time = datetime.now() + timedelta(minutes=5)
+    while datetime.now() < end_time:
+        for sensor in sensors:
+            sensor.notify_callbacks()
+        time.sleep(1)  # Odczyt co 1 sekundę
 
     # Zamykanie logera
     logger.stop()
+
+    # Przykład odczytu logów
+    print("\nOstatnie odczyty:")
+    start_time = datetime.now() - timedelta(minutes=1)
+    for log in logger.read_logs(start_time, datetime.now()):
+        print(f"{log['timestamp']} - {log['sensor_id']}: {log['value']} {log['unit']}")
 
 if __name__ == "__main__":
     main()

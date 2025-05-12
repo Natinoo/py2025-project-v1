@@ -151,3 +151,41 @@ class Logger:
                             if start <= timestamp <= end:
                                 if sensor_id is None or row['sensor_id'] == sensor_id:
                                     yield row
+
+    def _needs_rotation(self) -> bool:
+        """Sprawdza, czy plik wymaga rotacji."""
+        if self.current_file_size >= self.max_size_mb * 1024 * 1024:
+            return True
+        if self.current_line_count >= self.rotate_after_lines:
+            return True
+        # Sprawdzenie rotacji czasowej
+        if hasattr(self, 'last_rotation_time'):
+            if (datetime.now() - self.last_rotation_time) >= timedelta(hours=self.rotate_every_hours):
+                return True
+        else:
+            self.last_rotation_time = datetime.now()
+        return False
+
+    def read_logs(self, start: datetime, end: datetime, sensor_id: Optional[str] = None) -> Iterator[Dict]:
+        """Pobiera wpisy z logów zadanego zakresu."""
+        for root, dirs, files in os.walk(self.log_dir):
+            for file in files:
+                file_path = os.path.join(root, file)
+                if file.endswith('.csv') or file.endswith('.zip'):
+                    with (zipfile.ZipFile(file_path, 'r') if file.endswith('.zip')
+                    else open(file_path, 'r')) as f:
+                        if file.endswith('.zip'):
+                            with f.open(f.namelist()[0]) as csvfile:
+                                reader = csv.DictReader(line.decode('utf-8') for line in csvfile)
+                        else:
+                            reader = csv.DictReader(f)
+                        for row in reader:
+                            try:
+                                timestamp = datetime.strptime(row['timestamp'], '%Y-%m-%d %H:%M:%S.%f'
+                                if '.' in row['timestamp']
+                                else '%Y-%m-%d %H:%M:%S')
+                                if start <= timestamp <= end:
+                                    if sensor_id is None or row['sensor_id'] == sensor_id:
+                                        yield row
+                            except ValueError as e:
+                                print(f"Błąd parsowania wiersza: {row}, błąd: {e}")

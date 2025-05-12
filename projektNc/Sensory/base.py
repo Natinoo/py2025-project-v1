@@ -45,3 +45,10 @@ class Sensor:
 
     def __str__(self):
         return f"{self.name} ({self.sensor_id}): {self.last_value} {self.unit}"
+
+    def read_value(self):
+        raise NotImplementedError("Metoda musi być nadpisana w klasie potomnej.")
+
+        # Po implementacji w klasie potomnej, ta część będzie wykonana:
+        self.notify_callbacks()
+        return self.last_value

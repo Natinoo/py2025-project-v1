@@ -1,0 +1,1 @@
+Odpalamy gui.py, klikamy start, odpalamy main.py i czujniki są scztywyne i wyświetlane w programie.

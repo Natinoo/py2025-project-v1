@@ -5,43 +5,45 @@ import sys
 from network.config import load_config
 
 class NetworkServer:
-    def __init__(self, port: int = None):
-        config = load_config().get("server", {})
-        self.port = port or config.get("port", 5000)
+       try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind(('0.0.0.0', self.port))
+            s.listen(5)
+            print(f"[SERVER] Listening on port {self.port}")
 
-    def start(self):
-        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_socket.bind(('', self.port))
-        server_socket.listen(5)
-        print(f"[INFO] Serwer nasłuchuje na porcie {self.port}...")
-
-        try:
             while True:
-                client_socket, addr = server_socket.accept()
-                threading.Thread(target=self._handle_client, args=(client_socket,)).start()
-        except KeyboardInterrupt:
-            print("\n[INFO] Serwer zakończył działanie.")
-        finally:
-            server_socket.close()
+                conn, addr = s.accept()
+                print(f"[SERVER] Connection from {addr}")
+                threading.Thread(
+                    target=self.handle_client,
+                    args=(conn,),
+                    daemon=True
+                ).start()
+    except Exception as e:
+        print(f"[SERVER ERROR] {e}")
 
-    def _handle_client(self, client_socket):
+    def handle_client(self, conn):
         try:
             data = b""
             while True:
-                chunk = client_socket.recv(1024)
+                chunk = conn.recv(1024)
                 if not chunk:
                     break
                 data += chunk
                 if b"\n" in chunk:
                     break
 
-            message = json.loads(data.decode("utf-8"))
-            print("[INFO] Odebrano dane:")
-            for k, v in message.items():
-                print(f"  {k}: {v}")
+        message = json.loads(data.decode('utf-8'))
+        print(f"[SERVER] Received: {message}")
 
-            client_socket.sendall(b"ACK\n")
-        except Exception as e:
-            print(f"[ERROR] Błąd obsługi klienta: {e}", file=sys.stderr)
-        finally:
-            client_socket.close()
+        if self.message_queue:
+            self.message_queue.put(("sensor_data", message))
+
+        conn.sendall(b"ACK\n")
+    except Exception as e:
+        print(f"[SERVER] Client error: {e}")
+        if self.message_queue:
+            self.message_queue.put(("error", str(e)))
+    finally:
+        conn.close()

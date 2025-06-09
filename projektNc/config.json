@@ -1,4 +1,15 @@
 {
+  "server": 
+  {
+    "port": 5001
+  },
+  "client": 
+  {
+    "host": "localhost",
+    "port": 5001,
+    "timeout": 5.0,
+    "retries": 3
+  },
   "log_dir": "./logs",
   "filename_pattern": "sensors_%Y%m%d.csv",
   "buffer_size": 200,

@@ -9,39 +9,43 @@ def main():
     logger = Logger("config.json")
     logger.start()
 
-    client = NetworkClient(
-        host="127.0.0.1",
-        port=5000,
-        timeout=5.0,
-        retries=3
-    )
-    client.connect()
+    client = NetworkClient()
     
     # Tworzenie instancji czujników
     sensors = [
-        TemperatureSensor("T1", "Temperature Sensor", "°C", -10, 40),
-        HumiditySensor("H1", "Humidity Sensor", "%", 0, 100),
-        PressureSensor("P1", "Pressure Sensor", "hPa", 950, 1050),
-        LightSensor("L1", "Light Sensor", "lux", 0, 10000)
+        TemperatureSensor("Temperatura", "Temperature Sensor", "°C", -10, 40),
+        HumiditySensor("Wilgotność", "Humidity Sensor", "%", 0, 100),
+        PressureSensor("Ciśnienie", "Pressure Sensor", "hPa", 950, 1050),
+        LightSensor("Ilość światła", "Light Sensor", "lux", 0, 10000)
     ]
 
-    # Symulacja pracy czujników
-    end_time = datetime.now() + timedelta(minutes=5)
-    while datetime.now() < end_time:
-        for sensor in sensors:
-            value = sensor.read_value()
-            logger.log_reading(sensor.sensor_id, datetime.now(), value, sensor.unit)
-            success = client.send({
-                "sensor_id": sensor.sensor_id,
-                "timestamp": datetime.now().isoformat(),
-                "value": value,
-                "unit": sensor.unit
-            })
-        time.sleep(1)
+    try:
+        # Run for 5 minutes
+        end_time = datetime.now() + timedelta(minutes=5)
+        while datetime.now() < end_time:
+            for sensor in sensors:
+                # Read sensor value
+                value = sensor.read_value()
+                timestamp = datetime.now()
 
-    # Zamykanie połączeń
-    logger.stop()
-    client.close()
+                # Log locally
+                logger.log_reading(sensor.sensor_id, timestamp, value, sensor.unit)
+
+                # Send to server
+                data = {
+                    "sensor_id": sensor.sensor_id,
+                    "value": value,
+                    "unit": sensor.unit,
+                    "timestamp": timestamp.isoformat()
+                }
+                client.send(data)
+
+            time.sleep(1)
+
+    except KeyboardInterrupt:
+        print("\nStopping sensor simulation...")
+    finally:
+        logger.stop()
 
 if __name__ == "__main__":
     main()
